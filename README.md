@@ -63,7 +63,9 @@ pip install -r requirements.txt
 ### 3️⃣ Install FFmpeg (Required)
 - FFmpeg is required to convert output videos into a Streamlit-compatible format.
 - For Windows
+  
 Download from https://ffmpeg.org/download.html
+
 Add FFmpeg to PATH
 ```bash
 ffmpeg -version
