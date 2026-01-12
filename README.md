@@ -1,5 +1,3 @@
-# Automated-Vehicle-Monitoring-System
-Vehicle detection, tracking, speed estimation, and traffic analytics using YOLOv8
 # 🚦 Automated Vehicle Monitoring System
 **Vehicle Detection • Tracking • Speed Estimation • Traffic Analytics Dashboard**
 
@@ -52,11 +50,6 @@ Automated-Vehicle-Monitoring-System/
 ├── requirements.txt # Python dependencies
 ├── README.md # Project documentation
 ├── .gitignore # Git ignore rules
-
-> ⚠️ Note: Files such as `.db` and `.mp4` are **generated at runtime** and are intentionally excluded from version control.
-
----
-
 ## ⚙️ Installation & Setup
 
 ### 1.Clone the Repository
