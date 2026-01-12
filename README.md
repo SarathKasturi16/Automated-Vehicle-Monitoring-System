@@ -1,7 +1,9 @@
 # 🚦 Automated Vehicle Monitoring System
+
 **Vehicle Detection • Tracking • Speed Estimation • Traffic Analytics Dashboard**
 
-An end-to-end, production-style **traffic analytics system** built using **YOLOv8**, **ByteTrack**, and **Streamlit**.  
+An end-to-end, production-style traffic analytics system built using **YOLOv8**, **ByteTrack**, and **Streamlit**.
+
 This project performs **vehicle-centric traffic analysis** on uploaded traffic videos, including detection, tracking, speed estimation, direction analysis (IN / OUT), and presents the results through an interactive web dashboard.
 
 ---
@@ -21,21 +23,11 @@ This project performs **vehicle-centric traffic analysis** on uploaded traffic v
 ---
 
 ## 🏗️ System Architecture
-Input Video
-↓
-YOLOv8 Segmentation (Detection)
-↓
-ByteTrack (Tracking)
-↓
-Stable Vehicle ID Layer (Re-Identification)
-↓
-Speed & Direction Estimation
-↓
-SQLite Vehicle Analytics Database
-↓
-Streamlit Dashboard (Video + Metrics)
+
+Input Video → YOLOv8 Segmentation (Detection) → ByteTrack (Tracking) → Stable Vehicle ID Layer (Re-Identification) → Speed & Direction Estimation → SQLite Vehicle Analytics Database → Streamlit Dashboard (Video & Metrics)
 
 This system is **vehicle-centric**, meaning:
+
 - Each vehicle is tracked across its full lifecycle
 - Analytics are computed per vehicle (not per frame)
 
@@ -50,23 +42,37 @@ Automated-Vehicle-Monitoring-System/
 ├── requirements.txt # Python dependencies
 ├── README.md # Project documentation
 ├── .gitignore # Git ignore rules
+
+
+---
+
 ## ⚙️ Installation & Setup
 
-### 1.Clone the Repository
+### 1️⃣ Clone the Repository
+
+```bash
 git clone https://github.com/SarathKasturi16/Automated-Vehicle-Monitoring-System.git
 cd Automated-Vehicle-Monitoring-System
-2.Install Python Dependencies
-All required libraries are listed in requirements.txt.
+```
+2️⃣ Install Python Dependencies
+```bash
 pip install -r requirements.txt
-3. Install FFmpeg (Required)
+```
+3️⃣ Install FFmpeg (Required)
 
 FFmpeg is required to convert output videos into a Streamlit-compatible format.
 
-Windows:
-Download from https://ffmpeg.org/download.html
- and add FFmpeg to PATH
- Verify installation:
+Windows
 
+Download from https://ffmpeg.org/download.html
+
+Add FFmpeg to PATH
+```bash
 ffmpeg -version
-Running the Application
-python -m streamlit run streamlit_app.py      
+```
+🚀 Running the Application
+```bash
+python -m streamlit run streamlit_app.py
+```
+
+
