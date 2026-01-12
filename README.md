@@ -55,12 +55,12 @@ Automated-Vehicle-Monitoring-System/
 git clone https://github.com/SarathKasturi16/Automated-Vehicle-Monitoring-System.git
 cd Automated-Vehicle-Monitoring-System
 ```
-###2️⃣ Install Python Dependencies
+### 2️⃣ Install Python Dependencies
 All required libraries are listed in requirements.txt.
 ```bash
 pip install -r requirements.txt
 ```
-###3️⃣ Install FFmpeg (Required)
+### 3️⃣ Install FFmpeg (Required)
 FFmpeg is required to convert output videos into a Streamlit-compatible format.
 For Windows
 Download from https://ffmpeg.org/download.html
@@ -68,7 +68,7 @@ Add FFmpeg to PATH
 ```bash
 ffmpeg -version
 ```
-###🚀 Running the Application
+### 🚀 Running the Application
 ```bash
 python -m streamlit run streamlit_app.py
 ```
