@@ -6,7 +6,7 @@ import os
 from core_pipeline import run_traffic_analytics
 
 st.set_page_config(
-    page_title="Traffic Analytics System",
+    page_title="Vehicle Vision",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -59,9 +59,7 @@ def cleanup_temp_video():
 
 
 # HEADER
-st.markdown(
-    '<p class="header-title">🚦 Traffic Analytics System</p>', unsafe_allow_html=True
-)
+st.markdown('<p class="header-title"> Vehicle Vision </p>', unsafe_allow_html=True)
 st.markdown(
     '<p class="header-subtitle">YOLO-based vehicle detection, tracking, direction sorting & speed estimation</p>',
     unsafe_allow_html=True,
@@ -71,7 +69,7 @@ st.divider()
 
 # SIDEBAR
 with st.sidebar:
-    st.markdown("### ⚙️ Platform Control")
+    st.markdown("### Platform Control")
     uploaded_video = st.file_uploader(
         "Upload raw traffic footage", type=["mp4", "avi", "mov"]
     )
@@ -85,9 +83,9 @@ with st.sidebar:
             st.session_state["uploaded_file_name"] = uploaded_video.name
             st.session_state["analysis_results"] = None
 
-        st.info(f"📁 Active File: {st.session_state['uploaded_file_name']}")
+        st.info(f" Active File: {st.session_state['uploaded_file_name']}")
 
-        st.markdown("### 🎛️ Calibration")
+        st.markdown("###  Calibration")
         pixel_to_meter = st.slider(
             "Pixel-to-meter ratio",
             min_value=0.01,
@@ -144,7 +142,7 @@ else:
     results = st.session_state["analysis_results"]
 
     if results is None:
-        st.subheader("🎥 Video Source Preview")
+        st.subheader(" Video Source Preview")
         st.video(st.session_state["temp_video_path"])
         st.caption(
             "Set calibration values and click 'Run Traffic Analytics' in the sidebar."
@@ -175,17 +173,17 @@ else:
         ].copy()
 
         tab_feed, tab_analytics, tab_logs = st.tabs(
-            ["🎥 Video Feeds", "📊 Analytics Dashboard", "🗄️ Database Logs"]
+            [" Video Feeds", " Analytics Dashboard", " Database Logs"]
         )
 
         # ---------------- TAB 1: VIDEO FEEDS ----------------
         with tab_feed:
             col_in, col_out = st.columns(2)
             with col_in:
-                st.markdown("**📥 Input Source**")
+                st.markdown("** Input Source**")
                 st.video(st.session_state["temp_video_path"])
             with col_out:
-                st.markdown("**📽️ Annotated Tracking Output**")
+                st.markdown("** Annotated Tracking Output**")
                 st.video(results["output_video"])
                 st.caption(
                     "Bounding boxes, direction line, and per-vehicle speed overlay."
@@ -245,7 +243,7 @@ else:
             else:
                 csv_data = df_display.to_csv(index=False).encode("utf-8")
                 st.download_button(
-                    "📥 Download Logs (CSV)",
+                    " Download Logs (CSV)",
                     data=csv_data,
                     file_name=f"traffic_analytics_{results['run_id']}.csv",
                     mime="text/csv",

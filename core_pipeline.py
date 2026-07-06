@@ -6,11 +6,11 @@ import sqlite3
 import datetime
 import uuid
 import os
-import tempfile
+import tempfile  # To store files temporarily
 from collections import deque
 
 from ultralytics import YOLO
-import supervision as sv
+import supervision as sv  # It converts YOLO's output into a format that ByteTrack understands.
 from supervision.geometry.core import Point
 
 
@@ -24,16 +24,14 @@ MAX_REALISTIC_SPEED = 200.0
 
 DB_NAME = "traffic_vehicles.db"
 
-MIN_FRAMES_TO_LOG = 10
-LOST_GRACE_FRAMES = 12
+MIN_FRAMES_TO_LOG = 10  # Very short detections are often false positives
+LOST_GRACE_FRAMES = 12  # If ByteTrack loses a vehicle wait 12 Frames
 REID_DISTANCE_THRESH = 90
 
 DEFAULT_FPS_FALLBACK = 30.0
 
-
-SPEED_EMA_ALPHA = (
-    0.3  # This controls how "smooth" the speed number is for each vehicle.
-)
+# EMA = Exponential Moving Average
+SPEED_EMA_ALPHA = 0.3  # This controls how smooth the speed number is for each vehicle
 
 
 PROGRESS_UPDATE_EVERY_N_FRAMES = 5
@@ -43,11 +41,13 @@ PROGRESS_UPDATE_EVERY_N_FRAMES = 5
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-    cur.execute("PRAGMA journal_mode=WAL;")
+    cur.execute(
+        "PRAGMA journal_mode=WAL;"
+    )  # WAL = Write Ahead Logging -> for temporary log
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS vehicles (
-            run_id TEXT,
+            run_id TEXT, 
             vehicle_id INTEGER,
             class TEXT,
             entry_time TEXT,
@@ -131,18 +131,21 @@ def run_traffic_analytics(
 
     # Part 2: Opening the video + preparing output writer
 
-    cap = cv2.VideoCapture(video_path)
+    cap = cv2.VideoCapture(video_path)  # Open the video
     if not cap.isOpened():
         raise ValueError(f"Could not open video file: {video_path}")
 
+    # Get the dimensions
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = cap.get(cv2.CAP_PROP_FPS)
+
     if not fps or fps <= 0 or np.isnan(fps):
         fps = DEFAULT_FPS_FALLBACK
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 0
 
-    raw_output_path = os.path.join(
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 0  # Used for Progress Bar
+
+    raw_output_path = os.path.join(  # Create a temporary output file.
         tempfile.gettempdir(), f"traffic_output_{run_id}.mp4"
     )
 
@@ -152,39 +155,59 @@ def run_traffic_analytics(
     )
 
     # Part 3: Set up line, tracker, and tracking variables
-    lane_y = height // 2
-    line_zone = sv.LineZone(
-        Point(0, lane_y), Point(width, lane_y)
-    )  # line-crossing counter
-    line_annotator = sv.LineZoneAnnotator()
-    tracker = sv.ByteTrack(frame_rate=int(round(fps)))  ## frame-to-frame object tracker
 
-    next_vehicle_id = 1
+    lane_y = height // 2
+    # Used to determine IN/OUT
+    line_zone = sv.LineZone(Point(0, lane_y), Point(width, lane_y))
+    line_annotator = sv.LineZoneAnnotator()  # Draw the line on the output video.
+    tracker = sv.ByteTrack(frame_rate=int(round(fps)))  # frame-to-frame object tracker
+
+    next_vehicle_id = 1  # initialize the vehicle id
     vehicles = {}
-    track_to_vehicle = {}  # maps ByteTrack's track_id -> stable vehicle_id
+    track_to_vehicle = {}  # maps ByteTracks track_id -> stable vehicle_id
     last_positions = {}
     last_seen_frame = {}
     frame_idx = 0
-    fps_window = deque(maxlen=30)  # rolling window to calculate live processing FPS
+    fps_window = deque(maxlen=30)  # Stores last 30 processing FPS values
 
     # Part 4: loop — read frame, detect, track
+    """
+                Workflow
+                
+                Read Frame
+                    ↓
+            YOLO Detection
+                    ↓
+            Supervision Conversion
+                    ↓
+            ByteTrack Tracking
+                    ↓
+            Vehicle ID Assignment
+                    ↓
+            Speed Calculation
+                    ↓
+            Draw Bounding Boxes
+                    ↓
+                Save Frame
+    """
+
     while True:
-        ret, frame = cap.read()
+        ret, frame = cap.read()  # ret is boolean
         if not ret:
             break
 
         frame_idx += 1
         start_t = time.time()
 
-        results = model(frame, conf=0.25, iou=0.5, classes=vehicle_class_ids)[
-            0
-        ]  # run YOLO detection
+        # run YOLO detection
+        results = model(frame, conf=0.25, iou=0.5, classes=vehicle_class_ids)[0]
         detections = sv.Detections.from_ultralytics(
             results
         )  # convert to supervision format
         detections = tracker.update_with_detections(detections)  # assign ByteTrack IDs
 
         # Part 5: Loop through each detected vehicle in this frame
+
         used_vehicle_ids = set()
 
         if detections.tracker_id is not None:
@@ -201,19 +224,41 @@ def run_traffic_analytics(
                 cls = model.names[int(detections.class_id[i])]
 
                 # Part 6: Stable ID matching (nearest-match re-identification)
+
+                """ByteTrack gives Track ID
+                            │
+                            ▼
+                    Already mapped?
+                         │
+                    ┌────┴────┐
+                    │         │
+                    Yes        No
+                    │         │
+                    ▼         ▼
+                 Use ID   Search nearby
+                                │
+                                ▼
+                        Found Match?
+                            │      │
+                           Yes     No
+                            │      │
+                            ▼      ▼
+                     Reuse ID  Create New ID
+            """
+
                 if track_id not in track_to_vehicle:  # If this ByteTrack ID is new
                     matched_vid = None
                     best_dist = REID_DISTANCE_THRESH
 
                     # try to match it to a recently lost vehicle nearby
                     for vid, (px, py) in last_positions.items():
+                        # Vehicle has already been matched in this frame So Don't match it again
                         if vid in used_vehicle_ids:
                             continue
                         if vehicles[vid]["class"] != cls:
                             continue
-                        if (
-                            frame_idx - last_seen_frame.get(vid, 0) > LOST_GRACE_FRAMES
-                        ):  # too long gone
+                        # too long back (may be its new vehicle)
+                        if frame_idx - last_seen_frame.get(vid, 0) > LOST_GRACE_FRAMES:
                             continue
                         dist = np.hypot(cx - px, cy - py)  # distance to candidate
                         if dist < best_dist:
@@ -225,6 +270,7 @@ def run_traffic_analytics(
                     else:  # no match found this is a genuinely new vehicle
                         vehicle_id = next_vehicle_id
                         next_vehicle_id += 1
+                        # give time after the video started
                         relative_time = frame_idx / fps
                         vehicle_entry = start_time_real + datetime.timedelta(
                             seconds=relative_time
@@ -241,12 +287,15 @@ def run_traffic_analytics(
                             "end_y": cy,
                             "last_seen_frame": frame_idx,
                         }
-
+                    # map bytetrack id with stable id
                     track_to_vehicle[track_id] = vehicle_id
+
                 else:
                     vehicle_id = track_to_vehicle[track_id]  # already known reuse
 
-                used_vehicle_ids.add(vehicle_id)
+                used_vehicle_ids.add(
+                    vehicle_id
+                )  # Marks this vehicle as already processed in the current frame.
 
                 # Part 7: Update this vehicle's stats
                 v = vehicles[vehicle_id]
@@ -332,6 +381,7 @@ def run_traffic_analytics(
 
     cap.release()
     writer.release()
+    # ---------------loop ends-------------
 
     if progress_callback:
         avg_fps = sum(fps_window) / len(fps_window) if fps_window else 0
@@ -342,14 +392,12 @@ def run_traffic_analytics(
         if v["frames"] < MIN_FRAMES_TO_LOG:
             continue  # ignore vehicles seen too briefly (likely false detections)
 
-        if (
-            v["direction"] is None
-        ):  # fallback if it never crossed the line: guess direction from overall movement
+        # fallback if it never crossed the line: guess direction from overall movement
+        if v["direction"] is None:
             v["direction"] = "OUT" if v["end_y"] > v["start_y"] else "IN"
 
-        last_frame = v.get(
-            "last_seen_frame", frame_idx
-        )  # use vehicle's own last frame, not the shared dict
+        # use vehicle's own last frame, not the shared dict
+        last_frame = v.get("last_seen_frame", frame_idx)
         relative_exit_time = last_frame / fps
         exit_time = start_time_real + datetime.timedelta(seconds=relative_exit_time)
 
@@ -361,6 +409,7 @@ def run_traffic_analytics(
                 avg_speed = round(float(np.mean(valid_speeds)), 2)
                 max_speed = round(float(max(valid_speeds)), 2)
 
+        # save one row per vehicle to the database
         insert_vehicle(
             (
                 run_id,
@@ -374,9 +423,8 @@ def run_traffic_analytics(
                 v["frames"],
             )
         )
-        # save one row per vehicle to the database
 
-    # Part 15: Return summary
+    # Part 14: Return summary
     return {
         "run_id": run_id,
         "output_video": fix_video_for_streamlit(raw_output_path),
